@@ -24,3 +24,4 @@ These are just random scripts I've thrown together. Will eventually sort these i
 
 2. PwnieScripts: The PwnieScripts set contains five bash scripts that aid in the setup of the different listeners needed when working with the various Pwnie Express PwnPlug features. These scripts were designed to be used on BackTrack 5, although they can easily be adapted to work on any other distro (http://www.securitygeneration.com/security/pwniescripts-for-pwnie-express/)
 
+3. PwnPlug Reverse SSH over Tor: This mod simply enables the Pwnie Express PwnPlug to make reverse SSH connections over Tor (http://www.securitygeneration.com/security/reverse-ssh-over-tor-on-the-pwnie-express/)
