@@ -38,6 +38,5 @@ You may need to 'chmod a+x' these scripts for them to run.
 
 Changelog -
 
-0.1 - 	Initial release.
-0.2 -	Minor updates to coincide with PwnPlug software v1.1. 
-	pwnconnect.sh now disables StrictHostKeyChecking for SSH connections.
+- 0.1: Initial release.
+- 0.2: Minor updates to coincide with PwnPlug software v1.1. pwnconnect.sh now disables StrictHostKeyChecking for SSH connections.
