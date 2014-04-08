@@ -13,7 +13,7 @@ _\ \|  __/| (__ | |_| || |   | || |_ | |_| |
 \____/ \___||_| |_| \___||_|   \__,_| \__||_| \___/ |_| |_|
 ```
 
-<http://www.securitygeneration.com - @securitygen>
+http://www.securitygeneration.com - @securitygen
 
 PwnieScripts is a collection of simple bash scripts intended to simplify/automate the setup and use of the Pwnie Express PwnPlugs (http://pwnieexpress.com). The scripts are intended for use with, and have been tested on BackTrack 5. These could also be made to work on BackTrack 4 and other distros with very few changes.
 
