@@ -15,6 +15,11 @@ _\ \|  __/| (__ | |_| || |   | || |_ | |_| |
 
 http://www.securitygeneration.com - @securitygen
 
+PwnieScripts
+===
+
+From: http://www.securitygeneration.com/security/pwniescripts-for-pwnie-express/
+
 PwnieScripts is a collection of simple bash scripts intended to simplify/automate the setup and use of the Pwnie Express PwnPlugs (http://pwnieexpress.com). The scripts are intended for use with, and have been tested on BackTrack 5. These could also be made to work on BackTrack 4 and other distros with very few changes.
 
 Here is a list of each script and the functions it performs, in order of use:
@@ -31,7 +36,7 @@ Here is a list of each script and the functions it performs, in order of use:
 
 You may need to 'chmod a+x' these scripts for them to run.
 
-<Changelog>
+Changelog -
 
 0.1 - 	Initial release.
 0.2 -	Minor updates to coincide with PwnPlug software v1.1. 
