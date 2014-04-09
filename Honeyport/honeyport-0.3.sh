@@ -1,5 +1,5 @@
 #!/bin/bash
-# honeyport-0.2.sh
+# honeyport-0.3.sh
 # Linux Bash Ncat Honeyport with IPTables and Dome9 support
 # By Sebastien Jeanquier (@securitygen)
 # Security Generation - http://www.securitygeneration.com
@@ -7,8 +7,9 @@
 # ChangeLog -
 # 0.1: Initial release with whitelisting (2013-08-21)
 # 0.2: Added Dome9 IP Blacklist TTL option (2013-11-27)
+# 0.3: Added logfile location config (2014-04-09)
 #
-# TODO: Whitelist file, Blacklist timeout for IPtables, Custom log location
+# TODO: Whitelist file, Blacklist timeout for IPtables
 # ----CONFIG START----------------------------------------------
 # Configuration
 # Set your port number
@@ -23,6 +24,8 @@ DOMEAPI='';
 DOME9TTL=86400; # 21600 seconds = 6 hours, 86400 = 24h
 # Whitelisted IPs eg: ( "1.1.1.1" "123.2.3.4" );
 WHITELIST=( "1.1.1.1" );
+# Logfile location
+LOGFILE="honeyport.log"
 # ---CONFIG END-------------------------------------------------
 
 # Ensure a valid METHOD is set
@@ -39,7 +42,7 @@ else
                 #echo $RUNNING; # Optional for debugging
                 exit;
         else
-                echo "[*] Starting Honeyport listener on port $PORT. Waiting for the bees... - `date`" | tee -a ~/honeyport_log.txt;
+                echo "[*] Starting Honeyport listener on port $PORT. Waiting for the bees... - `date`" | tee -a $LOGFILE;
                 while [ -z "$RUNNING" ]
                         do
                                 # Run Ncat listener on $PORT. Run response.sh when a client connects. Grep client's IP.
@@ -50,7 +53,7 @@ else
                                 for i in "${WHITELIST[@]}"
                                 do
                                         if [ "${IP}" == $i ]; then
-                                                echo "[!] Hit from whitelisted IP: ${i} - `date`" | tee -a ~/honeyport_log.txt;
+                                                echo "[!] Hit from whitelisted IP: ${i} - `date`" | tee -a $LOGFILE;
                                                 WHITELISTED=true;
                                         fi
                                 done
@@ -59,7 +62,7 @@ else
                                 if [ "${IP}" != "" ] && [ "${IP}" != "127.0.0.1" ] && [ "${WHITELISTED}" != true ]; then
                                         if [ "${METHOD}" == "IPTABLES" ]; then
                                                 /sbin/iptables -A INPUT -p all -s ${IP} -j DROP;
-                                                echo "[+] Blacklisting: ${IP} with IPtables - `date`" | tee -a ~/honeyport_log.txt;
+                                                echo "[+] Blacklisting: ${IP} with IPtables - `date`" | tee -a $LOGFILE;
                                         elif [ "${METHOD}" == "DOME9" ]; then
                                                 # Add TTL value if needed
                                                 if [ -n "$DOME9TTL" ]; then
@@ -69,7 +72,7 @@ else
                                                 fi;
                                                 # Make Dome9 API request
                                                 /usr/bin/curl -k -v -H "Accept: application/json" -u ${DOMEUSER}:${DOMEAPI} -X "POST" -d "IP=$IP&Comment=Honeyport $PORT - `date`$TTL" https://api.dome9.com/v1/blacklist/Items/ > /dev/null 2>&1;
-                                                echo "[+] Blacklisting: ${IP} with Dome9 (TTL: ${DOME9TTL}) - `date`" | tee -a ~/honeyport_log.txt;
+                                                echo "[+] Blacklisting: ${IP} with Dome9 (TTL: ${DOME9TTL}) - `date`" | tee -a $LOGFILE;
                                         fi;
                                 fi;
                                 RUNNING=`/usr/sbin/lsof -i :${PORT}`;
