@@ -46,7 +46,7 @@ else
                 while [ -z "$RUNNING" ]
                         do
                                 # Run Ncat listener on $PORT. Run response.sh when a client connects. Grep client's IP.
-								# Note: to listen on a specific interface, insert its IP after the -l flag.
+				# Note: to listen on a specific interface, insert its IP after the -l flag.
                                 IP=`/usr/local/bin/ncat -v -l -p ${PORT} -e ./response.sh 2>&1 1> /dev/null | grep from | egrep '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}:' | awk {'print $4'} | cut -d: -f1`;
 
                                 # Check IP isn't whitelisted
