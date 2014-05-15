@@ -45,12 +45,7 @@ import requests				# Import requests to perform HTTP requests to Dome9
 import datetime				# For logging with timestamps
 import logging				# To write logs
 import ctypes				# For Windows Admin check
-
-# Import module for making OS commands (os.system is deprecated)
-if sys.version_info < (2,7):
-	from subprocess32 import CalledProcessError, check_output # Need subprocess32 if Python < 2.7
-else:
-	from subprocess import CalledProcessError, check_output
+from subprocess import CalledProcessError, check_output # Import module for making OS commands (os.system is deprecated)
 
 platform = platform.system() # Get the current platform (Linux, Darwin, Windows)
 
