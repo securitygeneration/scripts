@@ -1,6 +1,6 @@
 #!/usr/bin/python  
 # honeyport-0.1.py
-# Python (v2.6-3.4) Honeyport with OSX/*nix/Win and Dome9 support
+# Python (v2.6-3.4) Honeyport with OSX/Linux/Windows and Dome9 support
 # By Sebastien Jeanquier (@securitygen)
 # Security Generation - http://www.securitygeneration.com
 #
@@ -11,7 +11,7 @@
 # ChangeLog -
 # 0.1: Initial release (2014-05-15)
 #
-# TODO: Whitelist file, Blacklist timeout for system firewall rules, Multiple ports?
+# TODO: Whitelist file, Blacklist timeout for system firewall rules, Multiple ports?, Unix support
 # ----CONFIG START----------------------------------------------
 # Configuration
 # Set your port number
