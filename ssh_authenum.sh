@@ -15,19 +15,22 @@
 # -------------------------------------------------------------
 
 RED='\033[0;31m'
+YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 # Stats variables
 ctunusual=0
 ctfound=0
 cttimeout=0
+ctunresolved=0
+ctrefused=0
 total=0
 
 if [ -z "$1" ]; then
 
 	echo "Usage:"
 	echo "     ./ssh_auth.sh <inputfile> (one host per line)"
-	echo "     Currently assumes SSH is running on TCP/22"
+	echo "     Assumes SSH is running on TCP/22 unless host:port is supplied"
 
 else
 
@@ -37,36 +40,60 @@ else
 	do
 		result=""
 		methods=""
+		port="22"
 		let "total += 1"
 		#Debug
 		#echo "Testing host: $HOST"
 
-		result=$(ssh -T -o PreferredAuthentications=none -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ConnectTimeout=3 $HOST 2> >(cat))
+		# Handle hostname: formats
+		if [[ $HOST == *":"* ]]; then
+			port="$(echo $HOST|cut -d: -f2)"
+			HOST=$(echo $HOST|cut -d: -f1)
+		fi
+
+		result=$(ssh -T -o PreferredAuthentications=none -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ConnectTimeout=3 -p $port $HOST 2> >(cat))
 		# Debug
 		#echo "Result is $result"
+
+		HOSTPORT="$HOST:$port"
 
 		methods=$(echo "$result"|grep 'denied'|tr -d '().'|cut -d ' ' -f3)
 		# Debug
 		#echo "methods is $methods"
 
 		if [[ $result == *"timed out"* ]]; then
-			echo "Host $HOST: connection timed out"
+			echo "Host $HOSTPORT: connection timed out"
 			let "cttimeout += 1"
+		elif [[ $result == *"Could not resolve"* ]]; then
+			echo "Host $HOST: could not be resolved"
+			let "ctunresolved += 1"
+		elif [[ $result == *"Connection refused"* ]]; then
+			echo "Host $HOSTPORT: connection refused"
+			let "ctrefused += 1"
 		elif [ -n "$methods" ]; then
-			echo "Host $HOST supports: $methods"
+			echo "Host $HOSTPORT supports: $methods"
 			if [[ $methods == *"password"* ]]; then
 				pwhosts="$pwhosts$HOST\n"
 			fi
+			if [[ $methods == *"keyboard-interactive"* ]]; then
+				kihosts="$kihosts$HOST\n"
+			fi
 			let "ctfound += 1"
 		else
-			echo "Host $HOST: unusual response, check!"
+			echo "Host $HOSTPORT: unusual response, check!"
 			let "ctunusual += 1"
 		fi
 	done
 
-	printf "\n----- Stats -----\nTotal hosts scanned: $total\nSSH hosts found: $ctfound\nTimed out: $cttimeout\nUnusual responses: $ctunusual\n"
+	printf "\n----- Stats -----\nTotal hosts scanned: $total\nSSH hosts found: $ctfound\nConnections refused: $ctrefused\nTimed out: $cttimeout\nUnresolved: $ctunresolved\nUnusual responses: $ctunusual\n"
 
-	printf "\nHosts that support password authentication:\n${RED}$pwhosts${NC}"
+	if [ "$pwhosts" ]; then
+		printf "\nHosts that support password authentication:\n${RED}$pwhosts${NC}"
+	fi
+
+	if [ "$kihosts" ]; then
+		printf "\nHosts that support keyboard-interactive authentication:\n${YELLOW}$kihosts${NC}"
+	fi
 
 fi
 #End
