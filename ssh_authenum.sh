@@ -1,6 +1,6 @@
 #!/bin/bash
 # ssh_authenum.sh
-# Test list of hosts/IPs for supported SSH authentiation types
+# Test list of hosts/IPs for supported SSH authentication types
 # By Sebastien Jeanquier (@securitygen)
 # Security Generation - http://www.securitygeneration.com
 #
