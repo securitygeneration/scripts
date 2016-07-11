@@ -22,6 +22,7 @@ I'll put some of my random scripts in here until they warrant their own repo.
 
 * ssh_authenum.sh: Test list of hosts/IPs for supported SSH authentication types
 * pskdump.sh: Dumps IKE Pre-Shared Keys (PSK) of list of hosts/IPs
+* nsesearch.sh: Searches for nmap NSE scripts and prints out help, usage, parameters and sample output.
 
 =======
 
