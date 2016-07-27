@@ -15,7 +15,7 @@
 grep='grep'
 
 # Check if BSD or GNU grep
-flavour=`$grep -V | $grep -o BSD | head -1`
+flavour=$($grep -V | $grep -o BSD | head -1)
 if [[ $flavour == "BSD" ]]; then
 	if ! type "ggrep" &> /dev/null; then
 		echo "This won't work with BSD grep. Install GNU grep."
@@ -36,7 +36,7 @@ if ! type "nmap" &> /dev/null; then
 	exit 0
 fi
 
-if [ -z $1 ]; then
+if [ -z "$1" ]; then
 	echo "./nsesearch <search term> | Searches available nmap NSE scripts."
 	exit 0
 else
@@ -44,8 +44,8 @@ else
 fi
 
 # Find installed NSE scripts
-nmap_basepath=`nmap -v -d 2>/dev/null | $grep -Po 'Read from \K\/.*(?=:)'`
-script_list=`$grep -Po '[\w-]+(?=.nse)' $nmap_basepath/scripts/script.db | $grep "$search"`
+nmap_basepath=$(nmap -v -d 2>/dev/null | $grep -Po 'Read from \K\/.*(?=:)')
+script_list=$($grep -Po '[\w-]+(?=.nse)' "$nmap_basepath"/scripts/script.db | $grep "$search")
 
 # Search NSE script names for search parameter
 if [[ -n $script_list ]]; then
@@ -59,18 +59,18 @@ if [[ -n $script_list ]]; then
 	done;
 
 	# Read in chosen script number
-	read -p "Select a script number: " selection
-	until [ $selection -ge 0 ] && [ $selection -lt $num ];
+	read -r -p "Select a script number: " selection
+	until [ "$selection" -ge 0 ] && [ "$selection" -lt $num ];
 	do
 	echo "Invalid number!"
-	read -p "Select a script number: " selection
+	read -r -p "Select a script number: " selection
 	done
 
 	# Get script help output from nmap --script-help
-	output=`nmap --script-help=${name[$selection]}`
+	output=$(nmap --script-help="${name[$selection]}")
 
 	# Get usage, args and output info from script file
-	output=$output"\n\n`$grep -Poz "(?s)(--\s@.*?\n)\n" ${path[$selection]}`"
+	output=$output"\n\n$($grep -Poz "(?s)(--\s@.*?\n)\n" "${path[$selection]}")"
 	echo "$output" | less
 
 else

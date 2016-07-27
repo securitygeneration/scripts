@@ -47,11 +47,11 @@ else
 
 		# Handle hostname: formats
 		if [[ $HOST == *":"* ]]; then
-			port="$(echo $HOST|cut -d: -f2)"
-			HOST=$(echo $HOST|cut -d: -f1)
+			port="$(echo "$HOST"|cut -d: -f2)"
+			HOST=$(echo "$HOST"|cut -d: -f1)
 		fi
 
-		result=$(ssh -T -o PreferredAuthentications=none -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ConnectTimeout=3 -p $port $HOST 2> >(cat))
+		result=$(ssh -T -o PreferredAuthentications=none -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o ConnectTimeout=3 -p "$port" "$HOST" 2> >(cat))
 		# Debug
 		#echo "Result is $result"
 

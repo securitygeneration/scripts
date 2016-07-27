@@ -51,8 +51,8 @@ else
 	fi
 
 	if [[ $iflag == true ]]; then
-		egrep "\s($port)\/open" $gnmapfile | awk {'print $2'}
+		egrep "\s($port)\/open" "$gnmapfile" | awk {'print $2'}
 	else
-		egrep "\s($port)\/open" $gnmapfile
+		egrep "\s($port)\/open" "$gnmapfile"
 	fi
 fi #echo

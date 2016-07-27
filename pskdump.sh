@@ -11,7 +11,7 @@
 # Disclaimer: Quick and dirty hack. Use at own risk!
 # -------------------------------------------------------------
 
-if [ -z $1 ] || [ $1 == "-h" ] || [[ $EUID -ne 0 ]]; then
+if [ -z "$1" ] || [ "$1" == "-h" ] || [[ $EUID -ne 0 ]]; then
     echo "Usage:"
     echo "    sudo ./pskdump.sh <inputfile> (one IP/host per line)"
     echo "    Needs to be run as root for ike-scan."
@@ -22,12 +22,12 @@ else
 
     while read -r ip
     do
-        ike-scan -A -P/tmp/pskdump/$ip $ip
+        ike-scan -A -P/tmp/pskdump/"$ip" "$ip"
     done < "$1"
 
 	if [ "$(ls -A /tmp/pskdump)" ]; then
 		cat /tmp/pskdump/* > pskdump.txt
-		count=`cat pskdump.txt | wc -l | tr -d ' '`
+		count=$(cat pskdump.txt | wc -l | tr -d ' ')
 	fi
 	if [[ $count -gt 0 ]]; then
 		echo
