@@ -4,7 +4,6 @@
 # By Sebastien Jeanquier (@securitygen)
 # Security Generation - http://www.securitygeneration.com
 #
-# Note: Rough hack. Only tested on Mac OS X and Kali Linux!
 # -------------------------------------------------------------
 
 function usage {
