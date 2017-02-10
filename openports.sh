@@ -18,7 +18,7 @@ function usage {
 
 if [ $# -eq 0 ];
 then
-	usage $0;
+	usage "$0";
 	exit
 else
 
@@ -28,7 +28,7 @@ else
 	    case "$opt" in
 	      i)  iflag=true;;
 	      \?)		# unknown flag
-			usage $0; exit;;
+			usage "$0"; exit;;
 	    esac
 	done
 	shift "$((OPTIND-1))"
@@ -51,7 +51,7 @@ else
 	fi
 
 	if [[ $iflag == true ]]; then
-		egrep "\s($port)\/open" "$gnmapfile" | awk {'print $2'}
+		egrep "\s($port)\/open" "$gnmapfile" | awk '{print $2}'
 	else
 		egrep "\s($port)\/open" "$gnmapfile"
 	fi
