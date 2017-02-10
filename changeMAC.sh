@@ -54,7 +54,7 @@ else
 	fi
 
 	# Confirmation
-	read -p "Are you sure you want to set your MAC address to: $newMAC$randomised? (y/N): " selection
+	read -r -p "Are you sure you want to set your MAC address to: $newMAC$randomised? (y/N): " selection
 	if [[ "$selection" != "y" ]]; then
 		echo "Bailing out!"
 		exit 0
