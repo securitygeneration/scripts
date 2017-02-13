@@ -16,6 +16,7 @@
 
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
+GREEN='\e[32m'
 NC='\033[0m' # No Color
 
 # Stats variables
@@ -65,16 +66,16 @@ else
 		#echo "methods is $methods"
 
 		if [[ $result == *"timed out"* ]]; then
-			echo "Host $HOSTPORT: connection timed out"
+			echo -e "${RED}Host $HOSTPORT connection timed out${NC}"
 			let "cttimeout += 1"
 		elif [[ $result == *"Could not resolve"* ]]; then
-			echo "Host $HOST could not be resolved"
+			echo -e "${RED}Host $HOST could not be resolved${NC}"
 			let "ctunresolved += 1"
 		elif [[ $result == *"Connection refused"* ]]; then
-			echo "Host $HOSTPORT: connection refused"
+			echo -e "${RED}Host $HOSTPORT connection refused${NC}"
 			let "ctrefused += 1"
 		elif [ -n "$methods" ]; then
-			echo "Host $HOSTPORT supports: $methods"
+			echo -e "${GREEN}Host $HOSTPORT supports $methods${NC}"
 			if [[ $methods == *"password"* ]]; then
 				pwhosts="$pwhosts$HOST\n"
 				let "ctpassword += 1"
@@ -86,7 +87,7 @@ else
 			let "ctfound += 1"
 			let "ctconn += 1"
 		else
-			echo "Host $HOSTPORT returned unusual response, check!"
+			echo -e "${YELLOW}Host $HOSTPORT returned unusual response, check!${NC}"
 			let "ctunusual += 1"
 			let "ctconn += 1"
 		fi
@@ -95,11 +96,11 @@ else
 	printf "\n----- Stats -----\nTotal hosts scanned: $total\nTotal connections: $ctconn\nSSH hosts found: $ctfound\nUnusual responses: $ctunusual\nConnections refused: $ctrefused\nTimed out: $cttimeout\nUnresolved: $ctunresolved\n"
 
 	if [ "$pwhosts" ]; then
-		printf "\nHosts that support password authentication ($ctpassword/$ctfound):\n${RED}$pwhosts${NC}"
+		printf "\nSSH hosts that support password authentication ($ctpassword/$ctfound):\n${RED}$pwhosts${NC}"
 	fi
 
 	if [ "$kihosts" ]; then
-		printf "\nHosts that support keyboard-interactive authentication ($ctkeyboardinteractive/$ctfound):\n${YELLOW}$kihosts${NC}"
+		printf "\nSSH hosts that support keyboard-interactive authentication ($ctkeyboardinteractive/$ctfound):\n${YELLOW}$kihosts${NC}"
 	fi
 
 fi
