@@ -18,23 +18,27 @@ function usage {
 if [[ $# -eq 0 ]] || [ "$1" == "-h" ];
 then
 	usage "$0";
-	exit
+	exit 1
 elif [[ $EUID -ne 0 ]]; then
 	echo "[Error] Must be run as root."
-	exit
+	exit 1
 else
 
 	# Read flags
 	rflag=false
-		while getopts r opt
-		do
-		    case "$opt" in
-		      r)  rflag=true;;
-		      \?)		# unknown flag
-				usage "$0"; exit;;
-		    esac
-		done
-		shift "$((OPTIND-1))"
+	while getopts r opt
+	do
+		case "$opt" in
+			r)  
+				rflag=true
+				;;
+			\?)		# unknown flag
+				usage "$0"
+				exit 1
+				;;
+		esac
+	done
+	shift "$((OPTIND-1))"
 
 	# Get new MAC address
 	if [[ $rflag == true ]]; then
