@@ -19,17 +19,21 @@ function usage {
 if [ $# -eq 0 ];
 then
 	usage "$0";
-	exit
+	exit 1
 else
 
 	iflag=false
 	while getopts i opt
 	do
-	    case "$opt" in
-	      i)  iflag=true;;
-	      \?)		# unknown flag
-			usage "$0"; exit;;
-	    esac
+		case "$opt" in
+			i)  
+				iflag=true
+				;;
+			\?)		# unknown flag
+				usage "$0"
+				exit 1
+				;;
+		esac
 	done
 	shift "$((OPTIND-1))"
 
