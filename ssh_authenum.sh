@@ -21,9 +21,12 @@ NC='\033[0m' # No Color
 # Stats variables
 ctunusual=0
 ctfound=0
+ctconn=0
 cttimeout=0
 ctunresolved=0
 ctrefused=0
+ctpassword=0
+ctkeyboardinteractive=0
 total=0
 
 if [ -z "$1" ]; then
@@ -36,7 +39,7 @@ else
 
 	echo "----- Starting scan $(date) -----"
 
-	for HOST in $(cat $1);
+	while IFS= read -r HOST	
 	do
 		result=""
 		methods=""
@@ -65,7 +68,7 @@ else
 			echo "Host $HOSTPORT: connection timed out"
 			let "cttimeout += 1"
 		elif [[ $result == *"Could not resolve"* ]]; then
-			echo "Host $HOST: could not be resolved"
+			echo "Host $HOST could not be resolved"
 			let "ctunresolved += 1"
 		elif [[ $result == *"Connection refused"* ]]; then
 			echo "Host $HOSTPORT: connection refused"
@@ -74,25 +77,29 @@ else
 			echo "Host $HOSTPORT supports: $methods"
 			if [[ $methods == *"password"* ]]; then
 				pwhosts="$pwhosts$HOST\n"
+				let "ctpassword += 1"
 			fi
 			if [[ $methods == *"keyboard-interactive"* ]]; then
 				kihosts="$kihosts$HOST\n"
+				let "ctkeyboardinteractive += 1"
 			fi
 			let "ctfound += 1"
+			let "ctconn += 1"
 		else
-			echo "Host $HOSTPORT: unusual response, check!"
+			echo "Host $HOSTPORT returned unusual response, check!"
 			let "ctunusual += 1"
+			let "ctconn += 1"
 		fi
-	done
+	done < "$1" 
 
-	printf "\n----- Stats -----\nTotal hosts scanned: $total\nSSH hosts found: $ctfound\nConnections refused: $ctrefused\nTimed out: $cttimeout\nUnresolved: $ctunresolved\nUnusual responses: $ctunusual\n"
+	printf "\n----- Stats -----\nTotal hosts scanned: $total\nTotal connections: $ctconn\nSSH hosts found: $ctfound\nUnusual responses: $ctunusual\nConnections refused: $ctrefused\nTimed out: $cttimeout\nUnresolved: $ctunresolved\n"
 
 	if [ "$pwhosts" ]; then
-		printf "\nHosts that support password authentication:\n${RED}$pwhosts${NC}"
+		printf "\nHosts that support password authentication ($ctpassword/$ctfound):\n${RED}$pwhosts${NC}"
 	fi
 
 	if [ "$kihosts" ]; then
-		printf "\nHosts that support keyboard-interactive authentication:\n${YELLOW}$kihosts${NC}"
+		printf "\nHosts that support keyboard-interactive authentication ($ctkeyboardinteractive/$ctfound):\n${YELLOW}$kihosts${NC}"
 	fi
 
 fi
