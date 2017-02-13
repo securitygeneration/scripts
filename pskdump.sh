@@ -7,27 +7,68 @@
 #
 # ChangeLog -
 # 0.1: Initial release
+# 0.2: Added -p flag to accept custom source port number
 #
 # Disclaimer: Quick and dirty hack. Use at own risk!
 # -------------------------------------------------------------
 
-if [ -z "$1" ] || [ "$1" == "-h" ] || [[ $EUID -ne 0 ]]; then
-    echo "Usage:"
-    echo "    sudo ./pskdump.sh <inputfile> (one IP/host per line)"
-    echo "    Needs to be run as root for ike-scan."
-elif [[ ! -f $1 ]]; then
-	echo "Error: File '$1' doesn't exist."
+srcport=500 # default IKE src port
+
+function usage {
+	echo "Description: Runs ike-scan on file of hosts."
+	echo "Usage: $0 [-p port] {inputfile} (one IP/host per line)"
+	echo "    Default ike-scan runs from src-port 500 (requires root)"
+	echo "    Optional -p to provide alternate source port."
+}
+
+if [ $# -eq 0 ];
+then
+	usage "$0";
+	exit
 else
-    mkdir /tmp/pskdump 2>/dev/null
+	while getopts ":p:" opt
+	do
+	    case "$opt" in
+		    p)  
+			    srcport=$OPTARG
+			    ;;
+		    \?) 
+			    echo "Invalid option: -$OPTARG" >&2
+			    usage "$0"; exit 1
+			    ;;
+		    :) 
+			    echo "Option -$OPTARG requires a numeric argument." >&2
+			    exit 1
+			    ;;
+	    esac
+	done
+	shift "$((OPTIND-1))"
+
+	# Assign input file parameter to variable
+	inputfile=$1
+
+	# Check inputfile exists and user is root if $srcport < 1024	
+	if [[ -z $1 ]]; then
+		echo "Error: supply a filename."
+		exit 1
+	elif [[ ! -f $1 ]]; then
+		echo "Error: File '$1' doesn't exist."
+		exit 1
+	elif [ "$srcport" -lt 1024 ] && [[ $EUID -ne 0 ]]; then
+		echo "ike-scan requires root to run on source ports < 1024."
+		exit 1
+	else
+		mkdir /tmp/pskdump 2>/dev/null
+	fi
 
     while read -r ip
     do
-        ike-scan -A -P/tmp/pskdump/"$ip" "$ip"
-    done < "$1"
+        ike-scan -A -s "$srcport" -P/tmp/pskdump/"$ip" "$ip"
+    done < "$inputfile"
 
 	if [ "$(ls -A /tmp/pskdump)" ]; then
 		cat /tmp/pskdump/* > pskdump.txt
-		count=$(cat pskdump.txt | wc -l | tr -d ' ')
+		count=$(< pskdump.txt | wc -l | tr -d ' ')
 	fi
 	if [[ $count -gt 0 ]]; then
 		echo
