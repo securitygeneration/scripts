@@ -1,6 +1,6 @@
 #!/bin/bash
 # redirector.sh
-# Follows URLs supplied in file and outputs redirects.
+# Follows URLs supplied in file and outputs HTTP redirects (and SSL errors)
 # By Sebastien Jeanquier (@securitygen)
 # Security Generation - http://www.securitygeneration.com
 #
@@ -10,16 +10,17 @@
 # Disclaimer: Quick and dirty hack. Use at own risk - input is not sanitised!
 # Note: This script outputs _HTTP_ Response redirects to a HEAD request;
 #       this will not catch redirects performed by JavaScript or other.
-#	This script does not handle redirect loops (PR?)
 #
-# TODO: Handle redirect loops.
+# -------------------------------------------------------------
+# Configuration:
+max_redirs=10 # Maximum number of redirects to follow
 # -------------------------------------------------------------
 
 BOLD='\033[1m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
 GREEN='\e[32m'
-BLUE='\e[96m'
+BLUE='\e[36m'
 NC='\033[0m' # No Color
 
 # Stats variables
@@ -29,14 +30,19 @@ cterror=0
 ctredirects=0
 ctredirectedurls=0
 cttotalhosts=0
+ctsslerrors=0
 
 finalurls=()
+sslerrorurls=()
 recurse=true
 
 function usage {
 	echo "Description: Follows URLs supplied in file and outputs redirects."
-	echo "Usage: $0 [-R] [-v] {inputfile} (one URL per line)"
+	echo "Usage: $0 [-R] [-t] [-v] [-u <filename>] [-s <filename>] {inputfile} (one URL per line)"
+	echo "    Optional -u <file> to log unique (working) URLs to file"
+	echo "    Optional -s <file> to log URLs with SSL validation errors"
 	echo "    Optional -R to NOT recursively follow redirects"
+	echo "    Optional -t to scan SSL error URLs with testssl.sh"
 	echo "    Optional -v for more verbosity"
 }
 
@@ -56,13 +62,21 @@ function progress {
 	tput rc
 }
 
+# Print banner!
+echo -e "__________           .___.__                       __                 "
+echo -e "\______   \ ____   __| _/|__|______   ____   _____/  |_  ___________  "
+echo -e " |       _// __ \ / __ | |  \_  __ \_/ __ \_/ ___\   __\/  _ \_  __ \ "
+echo -e " |    |   \  ___// /_/ | |  ||  | \/\  ___/\  \___|  | (  <_> )  | \/ "
+echo -e " |____|_  /\___  >____ | |__||__|    \___  >\___  >__|  \____/|__|    "
+echo -e "        \/     \/     \/                 \/     \/                    "
+
+# Check arguments
 if [ $# -eq 0 ];
 then
 	usage "$0";
 	exit
 else
-	while getopts "vR" opt
-	do
+	while getopts "tvRu:s:" opt; do
 	    case "$opt" in
 		    R)
 			    recurse=false
@@ -70,10 +84,21 @@ else
 		    v)
 			    verbose=true
 			    ;;
+		    t)
+			    testssl=true
+			    ;;
+		    u)
+			    unique_file=$OPTARG
+			    ;;
+		    s)
+			    ssl_file=$OPTARG
+			    ;;
 		    \?)
 			    echo "Invalid option: -$OPTARG" >&2
 			    usage "$0"; exit 1
 			    ;;
+		    :)
+			    echo "Option -$OPTARG requires an argument." >&2
 	    esac
 	done
 	shift "$((OPTIND-1))"
@@ -81,6 +106,7 @@ else
 	# Assign input file parameter to variable
 	inputfile=$1
 fi
+
 # Check inputfile exists
 if [[ -z $1 ]]; then
 	echo "Error: supply a filename."
@@ -90,23 +116,39 @@ elif [[ ! -f $1 ]]; then
 	exit 1
 fi
 
+# Print insecure SSL warning
+# if [ "$insecure" = "-k" ]; then
+# 	echo -e "${YELLOW}Warning:${NC} -k flag supplied, SSL warnings (ie. invalid or expired certificates) will be ignored and URLs will be followed as normal."
+# else
+	# insecure=''
+# fi
+
+# Print non-recursion warning
 if [ ! "$recurse" = true ]
 then
 	echo -e "${YELLOW}Warning:${NC} -R flag supplied, not recursively following redirects. Output will only show first redirect."
 fi
 
+# Print out number of lines in file and wait
 cttotalhosts=$(wc -l < "$inputfile")
 >&2 echo "Info: '$inputfile' has $cttotalhosts lines!"
 >&2 echo "Waiting 3 seconds, press Ctrl-C to abort."
 sleep 3
 
+# Start main loop - read and follow URLs
 while read -r url; do 
-
 	let "ctredirects = 0"
 	let "cturls += 1"
+	response=''
+	error=''
+	ssl_error=''
+	last_redirect=''
+	message=''
+
 	url2=$(echo -n "$url" | tr -d '\r')
 
-	if [[ ! $url2 =~ ^https?:\/\/.* ]]
+	# Auto-prepend 'http' if ommitted
+	if [[ ! "$url2" =~ ^https?:\/\/.* ]]
 	then
 		url2="http://$url2"
 		if [ "$verbose" = true ]
@@ -123,69 +165,114 @@ while read -r url; do
 
 	# Request URL
 	response=$(curl -I -s -D - "$url2" -o /dev/null --connect-timeout 3 -S 2>&1)
-	# echo "$response" # DEBUG
+	# echo "$response"
+
+	# Check for an SSL error
+	error=$(echo "$response" | head | grep "curl:")
+	if [[ "$error" =~ .*SSL.* ]]; then
+		# If SSL error, log it and proceed ignoring SSL errors
+		ssl_error=$error
+		if [ "$verbose" = true ]
+		then
+			echo -e "\033[K\t${RED}[!]${NC} Invalid SSL on: $url2 [$ssl_error]"
+			progress
+		fi
+		response=$(curl -I -k -s -D - "$url2" -o /dev/null --connect-timeout 3 -S 2>&1)
+		error=$(echo "$response" | head | grep "curl:")
+		let "ctsslerrors += 1"
+		sslerrorurls+=("$url2")
+	fi
 
 	# Check for an error
-	error=$(echo "$response" | head | grep "curl:")
-	if [ -z "$response" ] || [ ! -z "$error" ]
-	then
+	if [ -z "$response" ] || [ ! -z "$error" ]; then
 		# If response is empty or curl error
 		status="[${RED}ERROR${NC}]"
 		message="-> Invalid [$error]"
 		let "cterror += 1"
 	else
 		# Check for redirect in response
-		redirect=$(echo "$response" | awk '/Location:/{print $2}' | tr -d '\r')
-		if [ -z "$redirect" ]
-		then
+		redirect=$(echo "$response" | awk '/^Location:/{print $2}' | tr -d '\r')
+		if [ -z "$redirect" ]; then
 			# Got response, but no 'Location' header.
+			# Mark 'OK'
 			status="[${GREEN}OK${NC}]"
-			message=""
+			if [ ! -z "$ssl_error" ]; then
+				message="(${YELLOW}Warning:${NC} Website is accessible, but presents an invalid SSL certificate)"
+			fi
 			let "ctok += 1"
 			finalurls+=("$url2")
 		else
 			# Got response and 'Location' header.
+			# Log redirect
 			let "ctredirects += 1"
-			if [ "$verbose" = true ]
-			then
+			if [ "$verbose" = true ]; then
 				echo -e "\033[K\t[->] Redirect is now $redirect"
 				progress
 			fi
 
-			if [ "$recurse" = true ];
-			then
+			if [ "$recurse" = true ]; then
 				# Follow redirects recursively
-				while [ ! -z "$redirect" ]; do
+				while [ ! -z "$redirect" ] && [ "$ctredirects" -lt "$max_redirs" ]; do
 					last_redirect=$redirect
-					response=$(curl -s -w "%{redirect_url}" "$redirect" -o /dev/null --connect-timeout 3 -S 2>&1)
-					redirect=$response
+					response=$(curl -I -s -w "%{redirect_url}" "$redirect" -o /dev/null --connect-timeout 3 -S 2>&1)
 
+					# Check for an SSL error
+					error=$(echo "$response" | head | grep "curl:")
+					if [[ "$error" =~ .*SSL.* ]]; then
+						# If SSL error, log it and proceed ignoring SSL errors
+						ssl_error=$error
+						if [ "$verbose" = true ]
+						then
+							echo -e "\033[K\t${RED}[!]${NC} Invalid SSL on: $redirect [$ssl_error]"
+							progress
+						fi
+						response=$(curl -I -k -s -w "%{redirect_url}" "$redirect" -o /dev/null --connect-timeout 3 -S 2>&1)
+						error=$(echo "$response" | head | grep "curl:")
+						let "ctsslerrors += 1"
+						sslerrorurls+=("$redirect")
+					fi
+
+					redirect=$response
+					# Check for other errors
 					error=$(echo "$redirect" | head | grep "curl:")
-					if [ ! -z "$error" ]
-					then
+					if [ ! -z "$error" ]; then
 						# Error with next URL	
+						# Mark 'Error'
 						status="[${RED}ERROR${NC}]"
 						message="-> $last_redirect [$ctredirects redirect(s)] Error: $error"
 						let "cterror += 1"
 						redirect=''
-					elif [ ! -z $redirect ]	
-					then
+					elif [ ! -z $redirect ]; then
 						# No error, next url returned
+						# Log redirect
 						let "ctredirects += 1"
-						if [ "$verbose" = true ]
-						then
+						if [ "$verbose" = true ]; then
 							echo -e "\033[K\t[->] Redirect is now $redirect"
 							progress
 						fi
 					else
 						# No URL returned - end of redirects
+						# Mark 'Redirect'
 						let "ctredirectedurls += 1"
 						status="[${YELLOW}REDIRECT${NC}]"
 						message="-> $last_redirect [$ctredirects redirect(s)]"
+						if [ ! -z "$ssl_error" ]; then
+							message="$message (${YELLOW}Warning:${NC} Website is accessible, but at least one server in the redirect chain presented an invalid SSL certificate)"
+						fi
 						finalurls+=("$last_redirect")
 					fi
 				done;
+
+				if [ ! "$ctredirects" -lt "$max_redirs" ]; then
+					# Exceeded redirect limit, mark 'Error'
+					status="[${RED}ERROR${NC}]"
+					error="Exceeded redirect limit ($max_redirs)"
+					message="-> $last_redirect [$ctredirects redirect(s)] Error: $error"
+					let "cterror += 1"
+					redirect=''
+				fi
 			else
+				# Log and mark 'Redirect'
 				let "ctredirectedurls += 1"
 				last_redirect=$redirect
 				status="[${YELLOW}REDIRECT${NC}]"
@@ -194,10 +281,36 @@ while read -r url; do
 			fi
 		fi
 	fi
+	# Print current URL status
 	echo -e "\033[K$status $url2 $message"
 	progress
 done < "$inputfile"
 
 # Print stats
-ctuniqueurls=$(tr ' ' '\n' <<< "${finalurls[@]}" | sort -u | wc -l)
-echo -e "\033[K${BOLD}[STATS]${NC} $cturls URLs checked, ${GREEN}$ctok OK${NC}, ${YELLOW}$ctredirectedurls redirect${NC}, ${RED}$cterror error${NC}, ${BLUE}$ctuniqueurls unique${NC}."
+if [ ! "${#finalurls[@]}" -eq 0 ]; then
+	ctuniqueurls=$(tr ' ' '\n' <<< "${finalurls[@]}" | sort -u | wc -l)
+else
+	ctuniqueurls="0"
+fi
+if [ ! "${#sslerrorurls[@]}" -eq 0 ]; then
+	ctsslurls=$(tr ' ' '\n' <<< "${sslerrorurls[@]}" | sort -u | wc -l)
+else
+	ctsslurls="0"
+fi
+echo -e "\033[K${BOLD}[STATS]${NC} $cturls URLs checked, ${GREEN}$ctok OK${NC}, ${YELLOW}$ctredirectedurls redirect${NC}, ${YELLOW}$ctsslerrors SSL errors${NC}, ${RED}$cterror error${NC}, ${BLUE}$ctuniqueurls unique${NC}."
+if [ ! -z "$unique_file" ]; then
+	unique_urls=$(tr ' ' '\n' <<< "${finalurls[@]}" | sort -u)
+	echo "$unique_urls" > "$unique_file"
+	echo "Info: $ctuniqueurls unique (non-redirect and successful-redirect) URL(s) saved to $unique_file" >&2
+fi
+if [ ! -z "$ssl_file" ]; then
+	ssl_urls=$(tr ' ' '\n' <<< "${sslerrorurls[@]}" | sort -u)
+	echo "$ssl_urls" > "$ssl_file"
+	echo "Info: $ctsslurls URL(s) with SSL validation errors were saved to $ssl_file" >&2
+fi
+if [ "$testssl" = true ]; then
+	for url in "${sslerrorurls[@]}"; do
+		echo "[!] Scanning $url with testssl.sh!"
+		testssl.sh "$url" | tee -a testssl.txt
+	done
+fi
