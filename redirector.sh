@@ -11,6 +11,7 @@
 # Note: This script outputs _HTTP_ Response redirects to a HEAD request;
 #       this will not catch redirects performed by JavaScript or other.
 #
+# TODO: Remove trailing / for unique-checks?
 # -------------------------------------------------------------
 # Configuration:
 max_redirs=10 # Maximum number of redirects to follow
@@ -286,28 +287,38 @@ while read -r url; do
 	progress
 done < "$inputfile"
 
-# Print stats
+# Calculate number of unique URLs and bad SSL URLs.
 if [ ! "${#finalurls[@]}" -eq 0 ]; then
-	ctuniqueurls=$(tr ' ' '\n' <<< "${finalurls[@]}" | sort -u | wc -l)
+	# Remove trailing slash for more accurate unique (eg. google.com/ & google.com)
+	ctuniqueurls=$(tr ' ' '\n' <<< "${finalurls[@]}" | sed 's/\/$//g' | sort -u | wc -l)
 else
 	ctuniqueurls="0"
 fi
 if [ ! "${#sslerrorurls[@]}" -eq 0 ]; then
-	ctsslurls=$(tr ' ' '\n' <<< "${sslerrorurls[@]}" | sort -u | wc -l)
+	# Remove trailing slash for more accurate unique (eg. google.com/ & google.com)
+	ctsslurls=$(tr ' ' '\n' <<< "${sslerrorurls[@]}" | sed 's/\/$//g' | sort -u | wc -l)
 else
 	ctsslurls="0"
 fi
+
+# Print stats
 echo -e "\033[K${BOLD}[STATS]${NC} $cturls URLs checked, ${GREEN}$ctok OK${NC}, ${YELLOW}$ctredirectedurls redirect${NC}, ${YELLOW}$ctsslerrors SSL errors${NC}, ${RED}$cterror error${NC}, ${BLUE}$ctuniqueurls unique${NC}."
+
+# Output unique and bad SSL URLs to files
 if [ ! -z "$unique_file" ]; then
-	unique_urls=$(tr ' ' '\n' <<< "${finalurls[@]}" | sort -u)
+	# Remove trailing slash for more accurate unique (eg. google.com/ & google.com)
+	unique_urls=$(tr ' ' '\n' <<< "${finalurls[@]}"  | sed 's/\/$//g' | sort -u)
 	echo "$unique_urls" > "$unique_file"
 	echo "Info: $ctuniqueurls unique (non-redirect and successful-redirect) URL(s) saved to $unique_file" >&2
 fi
 if [ ! -z "$ssl_file" ]; then
-	ssl_urls=$(tr ' ' '\n' <<< "${sslerrorurls[@]}" | sort -u)
+	# Remove trailing slash for more accurate unique (eg. google.com/ & google.com)
+	ssl_urls=$(tr ' ' '\n' <<< "${sslerrorurls[@]}" | sed 's/\/$//g' | sort -u)
 	echo "$ssl_urls" > "$ssl_file"
 	echo "Info: $ctsslurls URL(s) with SSL validation errors were saved to $ssl_file" >&2
 fi
+
+# Run bad SSL URLs through testssl.sh
 if [ "$testssl" = true ]; then
 	for url in "${sslerrorurls[@]}"; do
 		echo "[!] Scanning $url with testssl.sh!"
