@@ -160,7 +160,7 @@ while read -r url; do
 
 	if [ "$verbose" = true ]
 	then
-		echo -e "\033[K[+] Testing: $url2"
+		echo -e "\033[K[*] Testing: $url2"
 		progress
 	fi
 
@@ -175,7 +175,7 @@ while read -r url; do
 		ssl_error=$error
 		if [ "$verbose" = true ]
 		then
-			echo -e "\033[K\t${RED}[!]${NC} Invalid SSL on: $url2 [$ssl_error]"
+			echo -e "\033[K   ${RED}[!]${NC} Invalid SSL on: $url2 [$ssl_error]"
 			progress
 		fi
 		response=$(curl -I -k -s -D - "$url2" -o /dev/null --connect-timeout 3 -S 2>&1)
@@ -183,6 +183,9 @@ while read -r url; do
 		let "ctsslerrors += 1"
 		sslerrorurls+=("$url2")
 	fi
+
+	# Store HTTP Response code
+	responsecode=$(echo "$response" | head -n1 | awk "/^HTTP\//"{'print $2'})
 
 	# Check for an error
 	if [ -z "$response" ] || [ ! -z "$error" ]; then
@@ -197,17 +200,23 @@ while read -r url; do
 			# Got response, but no 'Location' header.
 			# Mark 'OK'
 			status="[${GREEN}OK${NC}]"
+			message="[$responsecode]"
 			if [ ! -z "$ssl_error" ]; then
-				message="(${YELLOW}Warning:${NC} Website is accessible, but presents an invalid SSL certificate)"
+				message+=" (${YELLOW}Warning:${NC} Website is accessible, but presents an invalid SSL certificate)"
 			fi
 			let "ctok += 1"
+			if [ "$verbose" = true ]; then
+				echo -e "\033[K   [+] HTTP Response code is: $responsecode"
+				progress
+			fi
 			finalurls+=("$url2")
 		else
 			# Got response and 'Location' header.
 			# Log redirect
 			let "ctredirects += 1"
 			if [ "$verbose" = true ]; then
-				echo -e "\033[K\t[->] Redirect is now $redirect"
+				echo -e "\033[K   [+] HTTP Response code is: $responsecode"
+				echo -e "\033[K   [->] Redirect is now $redirect"
 				progress
 			fi
 
@@ -215,8 +224,7 @@ while read -r url; do
 				# Follow redirects recursively
 				while [ ! -z "$redirect" ] && [ "$ctredirects" -lt "$max_redirs" ]; do
 					last_redirect=$redirect
-					response=$(curl -I -s -w "%{redirect_url}" "$redirect" -o /dev/null --connect-timeout 3 -S 2>&1)
-
+					response=$(curl -I -s -w "%{redirect_url}" "$redirect" --connect-timeout 3 -S 2>&1)
 					# Check for an SSL error
 					error=$(echo "$response" | head | grep "curl:")
 					if [[ "$error" =~ .*SSL.* ]]; then
@@ -224,16 +232,18 @@ while read -r url; do
 						ssl_error=$error
 						if [ "$verbose" = true ]
 						then
-							echo -e "\033[K\t${RED}[!]${NC} Invalid SSL on: $redirect [$ssl_error]"
+							echo -e "\033[K   ${RED}[!]${NC} Invalid SSL on: $redirect [$ssl_error]"
 							progress
 						fi
-						response=$(curl -I -k -s -w "%{redirect_url}" "$redirect" -o /dev/null --connect-timeout 3 -S 2>&1)
+						response=$(curl -I -k -s -w "%{redirect_url}" "$redirect" --connect-timeout 3 -S 2>&1)
 						error=$(echo "$response" | head | grep "curl:")
 						let "ctsslerrors += 1"
 						sslerrorurls+=("$redirect")
 					fi
 
-					redirect=$response
+					responsecode=$(echo "$response" | head -n1 | awk "/^HTTP\//"{'print $2'})
+					redirect=$(echo "$response" | tail -n1 | tr -d '\r')
+
 					# Check for other errors
 					error=$(echo "$redirect" | head | grep "curl:")
 					if [ ! -z "$error" ]; then
@@ -248,7 +258,8 @@ while read -r url; do
 						# Log redirect
 						let "ctredirects += 1"
 						if [ "$verbose" = true ]; then
-							echo -e "\033[K\t[->] Redirect is now $redirect"
+							echo -e "\033[K   [+] HTTP Response code is: $responsecode"
+							echo -e "\033[K   [->] Redirect is now '$redirect'"
 							progress
 						fi
 					else
@@ -256,7 +267,7 @@ while read -r url; do
 						# Mark 'Redirect'
 						let "ctredirectedurls += 1"
 						status="[${YELLOW}REDIRECT${NC}]"
-						message="-> $last_redirect [$ctredirects redirect(s)]"
+						message="-> $last_redirect [$ctredirects redirect(s), $responsecode]"
 						if [ ! -z "$ssl_error" ]; then
 							message="$message (${YELLOW}Warning:${NC} Website is accessible, but at least one server in the redirect chain presented an invalid SSL certificate)"
 						fi
