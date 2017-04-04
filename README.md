@@ -25,7 +25,7 @@ I'll put some of my random scripts in here until they warrant their own repo.
 * nsesearch.sh: Searches for nmap NSE scripts and prints out help, usage, parameters and sample output
 * openports.sh: Prints out all hosts that have the specified port(s) open in gnmap file
 * changeMAC.sh: Change Wifi interface MAC address on macOS >= 10.10
-* redirector.sh: Follows URLs supplied in a file and outputs redirects
+* redirector.sh: Follows URLs supplied in a file and outputs HTTP redirects (also reports SSL errors)
 
 =======
 
