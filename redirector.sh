@@ -10,10 +10,9 @@
 # Disclaimer: Quick and dirty hack. Use at own risk - input is not sanitised!
 # Note: This script outputs _HTTP_ Response redirects to a HEAD request;
 #       this will not catch redirects performed by JavaScript or other.
-#	It will also not check the HTTP response code of the final page,
-#	so if it's 404, or 500, it'll still be counted.
+#	It prints out the HTTP Response code, but anything other than
+#	a redirect (i.e. 404, 500) is still counted as 'OK'.
 #
-# TODO: Check for 200 vs 404, 500, etc?
 # -------------------------------------------------------------
 # Configuration:
 max_redirs=10 # Maximum number of redirects to follow
