@@ -64,6 +64,15 @@ function progress {
 	tput rc
 }
 
+function debug {
+	# debug(response)
+	responsecode=$(echo "$1" | head -n1 | awk "/^HTTP\//"{'print $2'})
+	echo "=== DEBUG: ==============================="
+	echo "Response code: '$responsecode'"
+	echo "$1"
+	echo -e "=======================================\n"
+}
+
 # Print banner!
 echo -e "__________           .___.__                       __                 "
 echo -e "\______   \ ____   __| _/|__|______   ____   _____/  |_  ___________  "
@@ -78,13 +87,16 @@ then
 	usage "$0";
 	exit
 else
-	while getopts "tvRu:s:" opt; do
+	while getopts "tvdRu:s:" opt; do
 	    case "$opt" in
 		    R)
 			    recurse=false
 			    ;;
 		    v)
 			    verbose=true
+			    ;;
+		    d)
+			    debug=true
 			    ;;
 		    t)
 			    testssl=true
@@ -118,14 +130,9 @@ elif [[ ! -f $1 ]]; then
 	exit 1
 fi
 
-# Print insecure SSL warning
-# if [ "$insecure" = "-k" ]; then
-# 	echo -e "${YELLOW}Warning:${NC} -k flag supplied, SSL warnings (ie. invalid or expired certificates) will be ignored and URLs will be followed as normal."
-# else
-	# insecure=''
-# fi
+# TODO If -t supplied, check for testssl.sh on the path
 
-# Print non-recursion warning
+# If -R set, print non-recursion warning
 if [ ! "$recurse" = true ]
 then
 	echo -e "${YELLOW}Warning:${NC} -R flag supplied, not recursively following redirects. Output will only show first redirect."
@@ -146,6 +153,7 @@ while read -r url; do
 	ssl_error=''
 	last_redirect=''
 	message=''
+	head='-I'
 
 	url2=$(echo -n "$url" | tr -d '\r')
 
@@ -159,18 +167,34 @@ while read -r url; do
 		fi
 	fi
 
-	if [ "$verbose" = true ]
-	then
+	if [ "$verbose" = true ]; then
 		echo -e "\033[K[*] Testing: $url2"
 		progress
 	fi
 
 	# Request URL
-	response=$(curl -I -s -D - "$url2" -o /dev/null --connect-timeout 3 -S 2>&1)
-	# echo "$response"
+	response=$(curl $head -s -D - "$url2" -o /dev/null --connect-timeout 3 -S 2>&1)
+	# Store HTTP Response code
+	responsecode=$(echo "$response" | head -n1 | awk "/^HTTP\//"{'print $2'})
+	# Grep any curl errors
+	error=$(echo "$response" | head | grep "curl:")
+
+	if [ "$debug" = true ]; then debug "$response"; fi
+
+	# If server returns empty or 5xx response, retry with GET request
+	if [[ "$error" =~ 'curl: (52)' ]] || [[ $responsecode =~ 5[[:digit:]][[:digit:]] ]]; then
+		if [ "$verbose" = true ]; then
+			echo -e "\033[K   [*] Blank or 5xx response returned, disabling HEAD requests for this URL."
+			progress
+		fi
+		head=''
+		response=$(curl $head -s -D - "$url2" -o /dev/null --connect-timeout 3 -S 2>&1)
+		error=$(echo "$response" | head | grep "curl:")
+
+		if [ "$debug" = true ]; then debug "$response"; fi
+	fi
 
 	# Check for an SSL error
-	error=$(echo "$response" | head | grep "curl:")
 	if [[ "$error" =~ .*SSL.* ]]; then
 		# If SSL error, log it and proceed ignoring SSL errors
 		ssl_error=$error
@@ -179,10 +203,12 @@ while read -r url; do
 			echo -e "\033[K   ${RED}[!]${NC} Invalid SSL on: $url2 [$ssl_error]"
 			progress
 		fi
-		response=$(curl -I -k -s -D - "$url2" -o /dev/null --connect-timeout 3 -S 2>&1)
+		response=$(curl $head -k -s -D - "$url2" -o /dev/null --connect-timeout 3 -S 2>&1)
 		error=$(echo "$response" | head | grep "curl:")
 		let "ctsslerrors += 1"
 		sslerrorurls+=("$url2")
+
+		if [ "$debug" = true ]; then debug "$response"; fi
 	fi
 
 	# Store HTTP Response code
@@ -215,19 +241,46 @@ while read -r url; do
 			# Got response and 'Location' header.
 			# Log redirect
 			let "ctredirects += 1"
+
+			# If value provided in Location header is relative, make absolute
+			if [[ ! "$redirect" =~ ^https?:// ]]; then
+				full_url=$(echo "$url2" | cut -d/ -f1)//$(echo "$url2" | cut -d/ -f3)$redirect
+				redirect="$full_url"	
+			fi
+			
 			if [ "$verbose" = true ]; then
 				echo -e "\033[K   [+] HTTP Response code is: $responsecode"
-				echo -e "\033[K   [->] Redirect is now $redirect"
+				echo -e "\033[K   [->] Redirect is now '$redirect'"
 				progress
 			fi
 
 			if [ "$recurse" = true ]; then
 				# Follow redirects recursively
 				while [ ! -z "$redirect" ] && [ "$ctredirects" -lt "$max_redirs" ]; do
+					head="-I"
 					last_redirect=$redirect
-					response=$(curl -I -s -w "%{redirect_url}" "$redirect" --connect-timeout 3 -S 2>&1)
-					# Check for an SSL error
+					response=$(curl $head -D - -s -w "\n%{redirect_url}" "$redirect" --connect-timeout 3 -S -o /dev/null 2>&1)
+					# Store HTTP Response code
+					responsecode=$(echo "$response" | head -n1 | awk "/^HTTP\//"{'print $2'})
+					# Check for errors
 					error=$(echo "$response" | head | grep "curl:")
+
+					if [ "$debug" = true ]; then debug "$response"; fi
+
+					# If server returns empty or 5xx response, retry with GET request
+					if [[ "$error" =~ 'curl: (52)' ]] || [[ $responsecode =~ 5[[:digit:]][[:digit:]] ]]; then
+						if [ "$verbose" = true ]; then
+							echo -e "\033[K   [*] Blank or 5xx response returned, disabling HEAD requests for this URL."
+							progress
+						fi
+						head=''
+						response=$(curl $head -D - -s -w "\n%{redirect_url}" "$redirect" --connect-timeout 3 -S -o /dev/null 2>&1)
+						error=$(echo "$response" | head | grep "curl:")
+
+						if [ "$debug" = true ]; then debug "$response"; fi
+					fi
+
+					# Check for an SSL error
 					if [[ "$error" =~ .*SSL.* ]]; then
 						# If SSL error, log it and proceed ignoring SSL errors
 						ssl_error=$error
@@ -236,17 +289,17 @@ while read -r url; do
 							echo -e "\033[K   ${RED}[!]${NC} Invalid SSL on: $redirect [$ssl_error]"
 							progress
 						fi
-						response=$(curl -I -k -s -w "%{redirect_url}" "$redirect" --connect-timeout 3 -S 2>&1)
+						response=$(curl $head -D - -k -s -w "\n%{redirect_url}" "$redirect" --connect-timeout 3 -S -o /dev/null 2>&1)
 						error=$(echo "$response" | head | grep "curl:")
 						let "ctsslerrors += 1"
 						sslerrorurls+=("$redirect")
+
+						if [ "$debug" = true ]; then debug "$response"; fi
 					fi
-
-					responsecode=$(echo "$response" | head -n1 | awk "/^HTTP\//"{'print $2'})
-					redirect=$(echo "$response" | tail -n1 | tr -d '\r')
-
 					# Check for other errors
-					error=$(echo "$redirect" | head | grep "curl:")
+					redirect=$(echo "$response" | tail -n1 | grep -E "https?://" | tr -d '\r')
+					responsecode=$(echo "$response" | head -n1 | awk "/^HTTP\//"{'print $2'})
+					error=$(echo "$response" | head | grep "curl:")
 					if [ ! -z "$error" ]; then
 						# Error with next URL	
 						# Mark 'Error'
@@ -254,7 +307,7 @@ while read -r url; do
 						message="-> $last_redirect [$ctredirects redirect(s)] Error: $error"
 						let "cterror += 1"
 						redirect=''
-					elif [ ! -z $redirect ]; then
+					elif [ ! -z "$redirect" ]; then
 						# No error, next url returned
 						# Log redirect
 						let "ctredirects += 1"
