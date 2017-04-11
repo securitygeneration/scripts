@@ -8,7 +8,7 @@
 # 0.1: Initial release
 #
 # Disclaimer: Quick and dirty hack. Use at own risk - input is not sanitised!
-# Note: This script outputs _HTTP_ Response redirects to a HEAD request;
+# Note: This script outputs _HTTP_ Response redirects to a HEAD  or GET request;
 #       this will not catch redirects performed by JavaScript or other.
 #	It prints out the HTTP Response code, but anything other than
 #	a redirect (i.e. 404, 500) is still counted as 'OK'.
