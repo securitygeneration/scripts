@@ -26,6 +26,7 @@ I'll put some of my random scripts in here until they warrant their own repo.
 * openports.sh: Prints out all hosts that have the specified port(s) open in gnmap file
 * changeMAC.sh: Change Wifi interface MAC address on macOS >= 10.10
 * redirector.sh: Follows URLs supplied in a file and outputs HTTP redirects (also reports SSL errors)
+* blacklister.sh: Blacklists the supplied IP address in Dome9 and/or Cloudflare
 
 =======
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # blacklister.sh
-# Blacklist the supplied IP address in Dome9 and/or Cloudflare
+# Blacklists the supplied IP address in Dome9 and/or Cloudflare
 # By Sebastien Jeanquier (@securitygen)
 # Security Generation - http://www.securitygeneration.com
 #
