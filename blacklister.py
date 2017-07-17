@@ -16,16 +16,16 @@
 # Blacklist using Cloudflare
 cloudflare = True
 # Your Cloudflare username (eg. user@email.com)
-CFUSER = 'info@securethoughts.net'
+CFUSER = ''
 # Your Cloudflare API key (https://www.cloudflare.com/a/account/my-account under API Key)
-CFAPI = 'adedb16a22dfe29ae111731a8a668ac6490a4'
+CFAPI = ''
 #
 # Blacklist using Dome9
 dome9 = True
 # Your Dome9 username (eg. user@email.com)
-domeuser = 'info@securethoughts.net'
+domeuser = ''
 # Your Dome9 API key (https://secure.dome9.com/settings under API Key)
-domeapi = '779y598q6fu5s8e7'
+domeapi = ''
 # Optional parameter to allow Dome9 Blacklist items to auto-expire after a certain amount of time (in seconds). Set to 0 for permanent blacklisting.
 dome9ttl = 86400 # eg. 86400 = 24h
 # ----CONFIG END-------------------------------------------------
