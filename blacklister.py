@@ -92,8 +92,10 @@ if dome9:
 
     # Send blacklist request to Dome9	
     resp = requests.post('https://api.dome9.com/v1/blacklist/Items/', auth=(domeuser,domeapi), params=payload)
+
     if debug:
        print resp.text
+
     # Check it was successful
     if resp.status_code == 200:
         print "[+] Blacklisted {0} with Dome9 (TTL: {1})".format(client_ip, dome9ttl)
@@ -110,15 +112,11 @@ if cloudflare and (CFUSER == "" or CFAPI == ""):
 if cloudflare:
     payload = {'mode': 'block', 'configuration':{"target":"ip","value":client_ip}, 'notes':note} # Build request payload
     headers = {'X-Auth-Email':CFUSER, 'X-Auth-Key':CFAPI}
-        
-    # Send blacklist request to Dome9	
-
-    # req = requests.Request('POST', 'https://api.cloudflare.com/client/v4/user/firewall/access_rules/rules', data=json.dumps(payload), headers=headers)
-    # prepared = req.prepare()
-    # print prepared.body
     resp = requests.post('https://api.cloudflare.com/client/v4/user/firewall/access_rules/rules', data=json.dumps(payload), headers=headers)
+
     if debug:
        print resp.text
+
     # Check it was successful
     if resp.status_code == 200:
         print "[+] Blacklisted {0} with Cloudflare.".format(client_ip)
